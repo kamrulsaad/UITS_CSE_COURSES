@@ -1,0 +1,206 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/kamrulsaad/UITS_CSE_COURSES/blob/main/8th-semester/cse-426/projects/project_1\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "ID : 2125051041\n",
+        "\n",
+        "Name: Kamrul Huda Sattari Saad"
+      ],
+      "metadata": {
+        "id": "Oy4gVik7HvmS"
+      }
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 4,
+      "metadata": {
+        "id": "FWObN2o2sO9B"
+      },
+      "outputs": [],
+      "source": [
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "from scipy.spatial.distance import cosine"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "okcYR8cmtIz5",
+        "outputId": "59365dc7-2d35-431e-e87d-36394a0e82bc"
+      },
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Drive already mounted at /content/drive; to attempt to forcibly remount, call drive.mount(\"/content/drive\", force_remount=True).\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "movies = pd.read_csv(\"/content/drive/MyDrive/Classroom/CSE426 - Data Mining Lab (Spring 25) 8A/movies.csv\")\n",
+        "ratings = pd.read_csv(\"/content/drive/MyDrive/Classroom/CSE426 - Data Mining Lab (Spring 25) 8A/ratings.csv\")"
+      ],
+      "metadata": {
+        "id": "smByNfvKtlNT"
+      },
+      "execution_count": 6,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Create a pivot table to represent movie ratings by users\n",
+        "movie_ratings = ratings.pivot_table(index='userId', columns='movieId', values='rating').fillna(0)"
+      ],
+      "metadata": {
+        "id": "QEzDF-FwuBDG"
+      },
+      "execution_count": 7,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from sklearn.metrics.pairwise import cosine_similarity\n",
+        "\n",
+        "# Calculate cosine similarity between movies\n",
+        "movie_similarity = cosine_similarity(movie_ratings.T)  # Transpose to compare movies\n",
+        "\n",
+        "# Create a DataFrame for easier access\n",
+        "movie_similarity_df = pd.DataFrame(movie_similarity, index=movie_ratings.columns, columns=movie_ratings.columns)"
+      ],
+      "metadata": {
+        "id": "mY-SBXuPuL1P"
+      },
+      "execution_count": 8,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def get_movie_recommendations(movie_id, top_n=10):\n",
+        "    \"\"\"Returns the top N similar movies to a given movie.\"\"\"\n",
+        "    similar_movies = movie_similarity_df[movie_id].sort_values(ascending=False)[1:]  # Exclude the movie itself\n",
+        "    top_similar_movies = similar_movies.head(top_n)\n",
+        "\n",
+        "    # Get movie titles\n",
+        "    recommendations = movies[movies['movieId'].isin(top_similar_movies.index)]['title'].tolist()\n",
+        "    return recommendations\n",
+        "\n",
+        "# Example usage:\n",
+        "movie_id_to_recommend = 1721  # Replace with the movie ID you want recommendations for\n",
+        "recommendations = get_movie_recommendations(movie_id_to_recommend)\n",
+        "print(f\"Recommendations for movie ID {movie_id_to_recommend}: {recommendations}\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "HgzegS_MuPC_",
+        "outputId": "beba8fef-4c3a-42c4-e6dd-92214615dd0d"
+      },
+      "execution_count": 9,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Recommendations for movie ID 1721: ['Men in Black (a.k.a. MIB) (1997)', 'Truman Show, The (1998)', 'Good Will Hunting (1997)', 'Saving Private Ryan (1998)', 'Star Wars: Episode I - The Phantom Menace (1999)', 'Sixth Sense, The (1999)', 'Shrek (2001)', 'Catch Me If You Can (2002)', 'Finding Nemo (2003)', 'Pirates of the Caribbean: The Curse of the Black Pearl (2003)']\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def get_personalized_recommendations(user_id, top_n=20):\n",
+        "    \"\"\"Returns personalized recommendations for a user.\"\"\"\n",
+        "    user_ratings = movie_ratings.loc[user_id]\n",
+        "\n",
+        "    # Movies the user has rated highly (e.g., rating >= 4)\n",
+        "    liked_movies = user_ratings[user_ratings >= 4].index\n",
+        "\n",
+        "    # Movies the user hasn't rated yet\n",
+        "    unrated_movies = user_ratings[user_ratings == 0].index\n",
+        "\n",
+        "    recommendations = []\n",
+        "    for movie_id in liked_movies:\n",
+        "        similar_movies = movie_similarity_df[movie_id].sort_values(ascending=False)[1:] # Exclude the movie itself\n",
+        "        # Consider only unrated movies\n",
+        "        similar_unrated_movies = similar_movies[similar_movies.index.isin(unrated_movies)]\n",
+        "        recommendations.extend(similar_unrated_movies.head(top_n).index.tolist())\n",
+        "\n",
+        "    # Get unique recommendations and their average ratings\n",
+        "    unique_recommendations = list(set(recommendations))\n",
+        "    average_ratings = ratings[ratings['movieId'].isin(unique_recommendations)].groupby('movieId')['rating'].mean()\n",
+        "\n",
+        "    # Sort by average rating\n",
+        "    sorted_recommendations = average_ratings.sort_values(ascending=False).head(top_n).index.tolist()\n",
+        "\n",
+        "    # Get movie titles\n",
+        "    recommended_movie_titles = movies[movies['movieId'].isin(sorted_recommendations)]['title'].tolist()\n",
+        "    return recommended_movie_titles\n",
+        "# Example usage:\n",
+        "user_id_to_recommend = 50  # Replace with the user ID\n",
+        "personalized_recommendations = get_personalized_recommendations(user_id_to_recommend)\n",
+        "print(f\"Personalized recommendations for user ID {user_id_to_recommend}: {personalized_recommendations}\")\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "33vwOpgku_7d",
+        "outputId": "3cc7a63f-c4d6-4116-d454-f4af21e2fd52"
+      },
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Personalized recommendations for user ID 50: ['My Man Godfrey (1957)', 'Rififi (Du rififi chez les hommes) (1955)', 'Unfaithfully Yours (1948)', 'Decalogue, The (Dekalog) (1989)', 'Stand, The (1994)', 'Ex Drummer (2007)', 'Che: Part One (2008)', 'Dream of Light (a.k.a. Quince Tree Sun, The) (Sol del membrillo, El) (1992)', 'Connections (1978)', 'Mystery of the Third Planet, The (Tayna tretey planety) (1981)', 'Battle For Sevastopol (2015)', 'SORI: Voice from the Heart (2016)', 'Winnie Pooh (1969)', 'Winnie the Pooh Goes Visiting (1971)', 'Alesha Popovich and Tugarin the Dragon (2004)', 'Junior and Karlson (1968)', 'There Once Was a Dog (1982)', 'Loving Vincent (2017)', 'Blue Planet II (2017)', 'De platte jungle (1978)']\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
